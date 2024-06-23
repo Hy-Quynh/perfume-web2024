@@ -1,11 +1,23 @@
-import { Button, DatePicker, message } from 'antd';
+import { Button, DatePicker, TableProps, message, Table } from 'antd';
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { checkoutAPI } from '../../../services/checkout';
 import { FORMAT_NUMBER } from '../../../constants';
 import { ORDER_STATUS } from '../../../enums/order';
+import { OrderStatusType } from '../../../types/checkout';
+import { TABLE_ITEM_PER_PAGE } from '../../../constants/table';
 
 const { RangePicker } = DatePicker;
+interface ProductType {
+  totalQuantity: number;
+  totalRevenue: number;
+  productId: string;
+  productName: string;
+  statuses: {
+    status: OrderStatusType;
+    totalQuantity: number;
+  }[];
+}
 
 function AdminDashboard() {
   const [timeRange, setTimeRage] = useState<any>([
@@ -13,6 +25,107 @@ function AdminDashboard() {
     dayjs(dayjs().format('YYYY-MM-DD'), 'YYYY-MM-DD'),
   ]);
   const [statisticData, setStatisticData] = useState<any>({});
+
+  const countStatusQuantity = (statusList: any, status: string) => {
+    return statusList
+      ?.filter((item: any) => item?.status === status)
+      ?.reduce((pre: any, curr: any) => pre + curr?.totalQuantity, 0);
+  };
+
+  const columns: TableProps<ProductType>['columns'] = [
+    {
+      title: 'STT',
+      dataIndex: 'index',
+      key: 'index',
+      render: (_, record, index) => <div>{index + 1}</div>,
+    },
+    {
+      title: 'Tên sản phẩm',
+      dataIndex: 'productName',
+      key: 'productName',
+    },
+    {
+      title: 'Doanh thu',
+      dataIndex: 'totalRevenue',
+      key: 'totalRevenue',
+      render: (_, record: any) => (
+        <div>{FORMAT_NUMBER.format(record?.totalRevenue)}đ</div>
+      ),
+      align: 'right'
+    },
+    {
+      title: 'Tổng số lượng',
+      dataIndex: 'totalQuantity',
+      key: 'totalQuantity',
+      render: (_, record: any) => (
+        <div>{FORMAT_NUMBER.format(record?.totalQuantity)}</div>
+      ),
+      align: 'right'
+    },
+    {
+      title: ORDER_STATUS['PAID'],
+      dataIndex: 'totalPaid',
+      key: 'totalPaid',
+      render: (_, record: any) => (
+        <div>
+          {FORMAT_NUMBER.format(countStatusQuantity(record?.statuses, 'PAID'))}
+        </div>
+      ),
+      align: 'right'
+    },
+    {
+      title: ORDER_STATUS['DELIVERY'],
+      dataIndex: 'totalDelivery',
+      key: 'totalDelivery',
+      render: (_, record: any) => (
+        <div>
+          {FORMAT_NUMBER.format(
+            countStatusQuantity(record?.statuses, 'DELIVERY')
+          )}
+        </div>
+      ),
+      align: 'right'
+    },
+    {
+      title: ORDER_STATUS['ORDERED'],
+      dataIndex: 'totalOrdered',
+      key: 'totalOrdered',
+      render: (_, record: any) => (
+        <div>
+          {FORMAT_NUMBER.format(
+            countStatusQuantity(record?.statuses, 'ORDERED')
+          )}
+        </div>
+      ),
+      align: 'right'
+    },
+    {
+      title: ORDER_STATUS['SHIPPED'],
+      dataIndex: 'totalShipped',
+      key: 'totalShipped',
+      render: (_, record: any) => (
+        <div>
+          {FORMAT_NUMBER.format(
+            countStatusQuantity(record?.statuses, 'SHIPPED')
+          )}
+        </div>
+      ),
+      align: 'right'
+    },
+    {
+      title: ORDER_STATUS['CANCEL'],
+      dataIndex: 'totalCancel',
+      key: 'totalCancel',
+      render: (_, record: any) => (
+        <div>
+          {FORMAT_NUMBER.format(
+            countStatusQuantity(record?.statuses, 'CANCEL')
+          )}
+        </div>
+      ),
+      align: 'right'
+    },
+  ];
 
   const searchOrderByDate = async () => {
     try {
@@ -123,6 +236,19 @@ function AdminDashboard() {
             {countQuantity('CANCEL')}
           </p>
         </div>
+      </div>
+      <div className='mt-[50px]'>
+        <div className='border-b-[2px] border-b-solid border-b-[#FFD334] w-fit pr-[10px] text-2xl font-bold mb-[20px]'>
+          Chi tiết thông tin sản phẩm
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={statisticData?.products || []}
+          rowKey='productId'
+          key='productId'
+          pagination={{ pageSize: TABLE_ITEM_PER_PAGE }}
+        />
       </div>
     </div>
   );

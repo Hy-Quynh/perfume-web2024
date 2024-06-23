@@ -90,16 +90,17 @@ module.exports = {
           { _id: order?.productInfo?.[productIndex]?.productId },
           {
             $inc: {
-              currentQuantity: Number(order?.productInfo?.[productIndex]?.quantity),
+              currentQuantity: Number(
+                order?.productInfo?.[productIndex]?.quantity
+              ),
             },
           }
         );
       }
 
-      await Checkout.deleteOne({ _id: orderId })
+      await Checkout.deleteOne({ _id: orderId });
 
-      return {success: true}
-
+      return { success: true };
     } catch (error) {
       return {
         success: false,
@@ -167,6 +168,25 @@ module.exports = {
         }
       );
 
+      if (status === 'CANCEL') {
+        for (
+          let productIndex = 0;
+          productIndex < res?.productInfo?.length;
+          productIndex++
+        ) {
+          await Product.updateOne(
+            { _id: res?.productInfo?.[productIndex]?.productId },
+            {
+              $inc: {
+                currentQuantity: Number(
+                  res?.productInfo?.[productIndex]?.quantity
+                ),
+              },
+            }
+          );
+        }
+      }
+
       if (res) {
         return {
           success: true,
@@ -220,32 +240,143 @@ module.exports = {
           },
         },
         {
-          $group: {
-            _id: "$deliveryStatus",
-            totalOrders: { $sum: 1 },
-            totalRevenue: { $sum: "$totalPrice" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            orderCountsByStatus: {
-              $push: {
-                status: "$_id",
-                count: "$totalOrders",
-                revenue: "$totalRevenue",
+          $facet: {
+            totalStats: [
+              {
+                $group: {
+                  _id: null,
+                  totalOrders: { $sum: 1 }, // Đếm tổng số đơn hàng
+                  totalCancelledOrders: {
+                    $sum: {
+                      $cond: [{ $eq: ['$deliveryStatus', 'CANCEL'] }, 1, 0],
+                    },
+                  }, // Đếm tổng số đơn hàng đã huỷ
+                  totalRevenue: {
+                    $sum: {
+                      $cond: [
+                        { $ne: ['$deliveryStatus', 'CANCEL'] },
+                        '$totalPrice',
+                        0,
+                      ],
+                    },
+                  }, // Tính tổng doanh thu (loại bỏ đơn hàng đã huỷ)
+                  orderCountsByStatus: {
+                    $push: {
+                      status: '$deliveryStatus',
+                      count: 1,
+                      revenue: {
+                        $cond: [
+                          { $ne: ['$deliveryStatus', 'CANCEL'] },
+                          '$totalPrice',
+                          0,
+                        ],
+                      },
+                    },
+                  },
+                },
               },
-            },
-            totalOrders: { $sum: "$totalOrders" },
-            totalRevenue: { $sum: "$totalRevenue" },
+              {
+                $project: {
+                  _id: 0,
+                  totalOrders: 1,
+                  totalCancelledOrders: 1,
+                  totalRevenue: 1,
+                  orderCountsByStatus: 1,
+                },
+              },
+            ],
+            productStats: [
+              {
+                $unwind: '$productInfo', // Làm phẳng mảng productInfo
+              },
+              {
+                $group: {
+                  _id: {
+                    productId: '$productInfo.productId',
+                    productName: '$productInfo.productName',
+                  },
+                  totalQuantity: { $sum: '$productInfo.quantity' },
+                  totalRevenue: {
+                    $sum: {
+                      $cond: [
+                        { $ne: ['$deliveryStatus', 'CANCEL'] },
+                        {
+                          $multiply: [
+                            '$productInfo.quantity',
+                            '$productInfo.orderPrice',
+                          ],
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                  statuses: {
+                    $push: {
+                      status: '$deliveryStatus',
+                      totalQuantity: '$productInfo.quantity',
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  productId: '$_id.productId',
+                  productName: '$_id.productName',
+                  totalQuantity: 1,
+                  totalRevenue: 1,
+                  statuses: {
+                    $map: {
+                      input: '$statuses',
+                      as: 'status',
+                      in: {
+                        status: {
+                          $switch: {
+                            branches: [
+                              {
+                                case: { $eq: ['$$status.status', 'PAID'] },
+                                then: 'PAID',
+                              },
+                              {
+                                case: { $eq: ['$$status.status', 'ORDERED'] },
+                                then: 'ORDERED',
+                              },
+                              {
+                                case: { $eq: ['$$status.status', 'DELIVERY'] },
+                                then: 'DELIVERY',
+                              },
+                              {
+                                case: { $eq: ['$$status.status', 'SHIPPED'] },
+                                then: 'SHIPPED',
+                              },
+                              {
+                                case: { $eq: ['$$status.status', 'CANCEL'] },
+                                then: 'CANCEL',
+                              },
+                            ],
+                            default: 'Unknown',
+                          },
+                        },
+                        totalQuantity: '$$status.totalQuantity',
+                      },
+                    },
+                  },
+                },
+              },
+            ],
           },
         },
         {
           $project: {
-            _id: 0,
-            totalOrders: 1,
-            totalRevenue: 1,
-            orderCountsByStatus: 1,
+            totalOrders: { $arrayElemAt: ['$totalStats.totalOrders', 0] },
+            totalCancelledOrders: {
+              $arrayElemAt: ['$totalStats.totalCancelledOrders', 0],
+            },
+            totalRevenue: { $arrayElemAt: ['$totalStats.totalRevenue', 0] },
+            orderCountsByStatus: {
+              $arrayElemAt: ['$totalStats.orderCountsByStatus', 0],
+            },
+            products: '$productStats',
           },
         },
       ]);
