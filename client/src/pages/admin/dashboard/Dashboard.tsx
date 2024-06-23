@@ -6,6 +6,7 @@ import { FORMAT_NUMBER } from '../../../constants';
 import { ORDER_STATUS } from '../../../enums/order';
 import { OrderStatusType } from '../../../types/checkout';
 import { TABLE_ITEM_PER_PAGE } from '../../../constants/table';
+import { displayDate } from '../../../utils/datetime';
 
 const { RangePicker } = DatePicker;
 interface ProductType {
@@ -43,6 +44,16 @@ function AdminDashboard() {
       title: 'Tên sản phẩm',
       dataIndex: 'productName',
       key: 'productName',
+      fixed: 'left',
+    },
+    {
+      title: 'Ngày order',
+      dataIndex: 'checkoutDate',
+      key: 'checkoutDate',
+      render: (_, record: any) => (
+        <div>{displayDate(record?.checkoutDate)}</div>
+      ),
+      fixed: 'left',
     },
     {
       title: 'Doanh thu',
@@ -51,7 +62,7 @@ function AdminDashboard() {
       render: (_, record: any) => (
         <div>{FORMAT_NUMBER.format(record?.totalRevenue)}đ</div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: 'Tổng số lượng',
@@ -60,7 +71,7 @@ function AdminDashboard() {
       render: (_, record: any) => (
         <div>{FORMAT_NUMBER.format(record?.totalQuantity)}</div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: ORDER_STATUS['PAID'],
@@ -71,7 +82,7 @@ function AdminDashboard() {
           {FORMAT_NUMBER.format(countStatusQuantity(record?.statuses, 'PAID'))}
         </div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: ORDER_STATUS['DELIVERY'],
@@ -84,7 +95,7 @@ function AdminDashboard() {
           )}
         </div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: ORDER_STATUS['ORDERED'],
@@ -97,7 +108,7 @@ function AdminDashboard() {
           )}
         </div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: ORDER_STATUS['SHIPPED'],
@@ -110,7 +121,7 @@ function AdminDashboard() {
           )}
         </div>
       ),
-      align: 'right'
+      align: 'right',
     },
     {
       title: ORDER_STATUS['CANCEL'],
@@ -123,7 +134,7 @@ function AdminDashboard() {
           )}
         </div>
       ),
-      align: 'right'
+      align: 'right',
     },
   ];
 
@@ -243,6 +254,7 @@ function AdminDashboard() {
         </div>
 
         <Table
+          scroll={{ x: 1500, y: 300 }}
           columns={columns}
           dataSource={statisticData?.products || []}
           rowKey='productId'

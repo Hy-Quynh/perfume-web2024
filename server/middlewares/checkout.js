@@ -235,8 +235,8 @@ module.exports = {
               $gte: new Date(startDate),
               $lte: new Date(endDate),
             },
-            isDelete: false, // Lọc ra các đơn hàng không bị xóa
-            status: true, // Lọc ra các đơn hàng hợp lệ
+            isDelete: false,
+            status: true,
           },
         },
         {
@@ -245,12 +245,12 @@ module.exports = {
               {
                 $group: {
                   _id: null,
-                  totalOrders: { $sum: 1 }, // Đếm tổng số đơn hàng
+                  totalOrders: { $sum: 1 },
                   totalCancelledOrders: {
                     $sum: {
                       $cond: [{ $eq: ['$deliveryStatus', 'CANCEL'] }, 1, 0],
                     },
-                  }, // Đếm tổng số đơn hàng đã huỷ
+                  },
                   totalRevenue: {
                     $sum: {
                       $cond: [
@@ -259,7 +259,7 @@ module.exports = {
                         0,
                       ],
                     },
-                  }, // Tính tổng doanh thu (loại bỏ đơn hàng đã huỷ)
+                  },
                   orderCountsByStatus: {
                     $push: {
                       status: '$deliveryStatus',
@@ -287,13 +287,16 @@ module.exports = {
             ],
             productStats: [
               {
-                $unwind: '$productInfo', // Làm phẳng mảng productInfo
+                $unwind: '$productInfo',
               },
               {
                 $group: {
                   _id: {
                     productId: '$productInfo.productId',
                     productName: '$productInfo.productName',
+                    checkoutDate: {
+                      $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+                    },
                   },
                   totalQuantity: { $sum: '$productInfo.quantity' },
                   totalRevenue: {
@@ -323,6 +326,7 @@ module.exports = {
                   _id: 0,
                   productId: '$_id.productId',
                   productName: '$_id.productName',
+                  checkoutDate: '$_id.checkoutDate',
                   totalQuantity: 1,
                   totalRevenue: 1,
                   statuses: {
