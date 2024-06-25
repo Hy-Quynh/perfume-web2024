@@ -46,7 +46,7 @@ const ListAdmin: React.FC = () => {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (_, record: any) => <div>{displayDate(record)}</div>,
+      render: (_, record: any) => <div>{displayDate(record?.createdAt)}</div>,
     },
     {
       title: 'Trạng thái',
